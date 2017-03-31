@@ -1,0 +1,164 @@
+---
+title: "Oats"
+author: "Dr Richard Wilkinson"
+date: "8 February 2016"
+
+output:
+  pdf_document: default
+  html_document: default
+---
+# jsp data
+
+```{r}
+library(faraway)
+library(lme4)
+library(ggplot2)
+data(jsp)
+head(jsp)
+dim(jsp)
+```
+
+Select final year only
+
+```{r}
+jspr <- jsp[jsp$year==2,]
+qplot(social, math, data = jspr, geom='boxplot')
+qplot(school, math, data = jspr, geom='boxplot')
+```
+
+Lets account for school
+
+```{r}
+lmer(math~ social + (1|school), data=jspr, contrasts=list(social=contr.sum))
+```
+
+To account for class we need to nest effects
+
+```{r}
+lmer(math~ social + (1|school)+(1| school:class), data=jspr, contrasts=list(social=contr.sum))
+
+```
+
+```{r}
+lmer(math~ social + (1| school/class), data=jspr, contrasts=list(social=contr.sum))
+
+```
+
+
+# Chapter 3 Section 3.1.1
+```{r}
+load('MAS473.RData')
+```
+
+## Inspect the data
+```{r}
+head(Oxide)
+```
+
+Note that Wafer isn't a 3-level factor; Wafer is nested within Lot
+eg $Y_{121}$ and $Y_{221}$ do not refer to the same Wafer.
+
+```{r}
+library(ggplot2)
+qplot(data=Oxide, Wafer, Thickness, facets=~Lot)
+qplot(data=Oxide, Wafer, Thickness, facets=~Lot, geom='boxplot')
+```
+
+which do you prefer?
+
+```{r}
+qplot(data=Oxide,Lot,Thickness,geom='boxplot')
+```
+
+We can see variation between Wafers in the same Lot
+and variation between Lots
+
+```{r}
+fm1<-lmer(Thickness~1+(1|Lot/Wafer),data=Oxide)
+summary(fm1)
+
+```
+
+equivalent command
+```{r}
+fm2 <- lmer(Thickness~1 +(1|Lot)+(1|Lot:Wafer), data =Oxide)
+summary(fm2)
+# Estimated random effects
+ranef(fm1)
+
+```
+
+
+# Section 3.1.2
+
+Split plot example
+
+```{r}
+
+attach(Oats)
+qplot(Block, yield, geom='boxplot')
+qplot(nitro, yield)
+qplot(Variety,yield, geom='boxplot')
+
+qplot(Variety:Block, yield, geom='boxplot', col=Variety)
+```
+
+Can get the plot random effect via Block/Variety
+Variety included as a fixed effect too
+
+```{r}
+(fm1<-lmer(yield~ nitro + Variety + (1|Block/Variety),Oats))
+```
+doesn't mean that variety is a random effect, just that it indicates the different plots within the block
+note that we don't need a random effect for the subplot - only 1 observation in each so represented by 
+
+$$\epsilon_{ijk}$$
+
+If this confuses you, can specify a plot factor:
+
+```{r}
+Plt<-gl(18,4)
+Oats<-data.frame(Oats,Plt)
+(Oats)
+```
+
+Same model as fm1
+```{r}
+(fm1b<-lmer(yield~nitro+Variety+(1|Block)+(1|Plt),Oats))
+
+```
+
+Model is
+
+$$Y_{ijk} = \mu + \tau_{v(i,j)} + \beta x_{ijk} + b_i + b_{ij} + \epsilon_{ijk}$$
+where
+
+$$ 
+\begin{aligned}
+i&=1,...,6: \textrm{block}\\
+j&=1,2,3: \textrm{plot} \\
+k&=1,2,3,4: \textrm{subplot} \\
+v(i,j) &= 1,2,3 ~\textrm{corresponding to variety  (eg. v(1,2)=2 for "Golden Rain")}\\
+x_{ijk} & ~\textrm{nitro level}
+\end{aligned}
+$$
+
+```{r}
+summary(fm1b)
+ranef(fm1b)
+```
+Note: can't have an ordinary linear model with plot effect, as confounded with Variety
+
+```{r}
+
+(lm1<-lm(yield~nitro+Variety+Plt ,Oats, contrasts=list(Plt=contr.sum)))
+```
+
+The 'equivalent' fixed effects model can be achieved by having a Variety:Block interaction
+Gives same estimates for Variety effects, but with smaller standard errors.
+
+
+```{r}
+lm1<-lm(yield~nitro+Variety*Block ,Oats, contrasts=list(Block=contr.sum))
+summary(lm1)
+```

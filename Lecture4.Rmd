@@ -1,0 +1,138 @@
+---
+title: "Lecture 4 - Correlated and uncorrelated random effects"
+author: "Witold Wolski"
+date: "March 12, 2017"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Sleepstudy dataset
+
+Lets now consider the sleepstudy dataset from the lme4 package. This is from a report on a study of the
+effects of sleep deprivation on reaction time for a number of subjects chosen from a population of long-
+distance truck drivers. These subjects were divided into groups that were allowed only a limited amount of
+sleep each night. We consider here the group of 18 subjects who were restricted to three hours of sleep per
+night for the first ten days of the trial. Each subject’s reaction time was measured several times on each day of the trial.
+
+```{r}
+library(lme4)
+str(sleepstudy)
+head(sleepstudy)
+```
+
+As always, we start by plotting the data
+
+```{r}
+library(ggplot2)
+
+qplot(Days, Reaction, facets=~Subject, data = sleepstudy)
+ggplot(sleepstudy, aes(x = Days , y = Reaction))  + geom_line(aes(colour=Subject))
+
+```
+
+qplot has an option to also draw on a fitted regression line to each person as well.
+
+```{r}
+
+qplot(Days, Reaction, facets=~Subject, data = sleepstudy,
+geom=c('point', 'smooth'), method='lm')
+
+
+```
+
+## Model 1: Correlated random effects
+
+```{r}
+
+fm06 <- lmer(Reaction ~ 1 + Days + (1 + Days | Subject), sleepstudy)
+summary(fm06)
+
+fm06b <- lmer(Reaction ~ 1 + Days + (1 + Days | Subject) + (1|Days), sleepstudy)
+summary(fm06b)
+
+
+```
+
+- What is the typical initial reaction time? answer $251.41 ms$
+- How much does reaction time typically increase per day? answer $10.47 ms/day$ 
+- What is typical subject-subject variation in the initial reaction time? $24.740 ms$
+- What is the typical subject-subject variation in the slope? $5.9 ms$
+- What would approximate 95% confidence intervals be for the slope and the intercept across all subjects?
+$251.41 ms \pm 1.96 \cdot 24.740 ms$
+- What is the typical within subject variation? $\hat{\sigma}=25.592ms$
+- Is there a strong relationship between a subjects initial reaction time and how strongly affected they
+are by sleep deprivation? NO since $\rho=0.07$.
+
+
+This model has used correlated random effects for the same subject, i.e., there is a correlation between the random subject intercept and the subject specific gradient. Mathematically, we have fit the model
+
+$$
+y_{ij} = \alpha + a_i + (\beta + b_i )Days_j + \epsilon_{ij}
+$$
+Where 
+
+
+$$
+\left(\begin{array}{c}
+a_i\\
+b_i
+\end{array}\right) \sim N(0,\Sigma)
+$$
+with 
+
+
+
+$$
+\Sigma =  \left(\begin{array}{cc}
+\sigma^2_a & \sigma_a \sigma_b\\
+\sigma_a \sigma_b & \sigma^2_b
+\end{array}\right)
+$$
+
+and
+
+$$
+\epsilon_{ij} = N(0,\sigma^2)
+$$
+The output above gives us estimates of the fixed effects $(\alpha,\beta)$, and the random effect variances $\Sigma$ and $\sigma^2$.
+
+$$\alpha = 251.41 , \beta = 10.47, \sigma_a =  24.740, \sigma_b = 5.922, \rho = 0.07$$  
+
+
+## Model 2: Uncorrelated random effects
+
+If you want to have random effects independent specify them in 2 separate blocks.
+
+```{r}
+head(sleepstudy)
+fm07 <- lmer(Reaction ~ 1 + (1 | Subject)+ Days + (Days-1|Subject), sleepstudy)
+summary(fm07)
+fm08 <- lmer(Reaction ~ 1 + Days + (1 | Subject) + (Days-1|Subject)+(1|Days), sleepstudy)
+summary(fm08)
+```
+
+Note that we have explicitly ruled out the intercept term in the random effect part for Days. If we didn’t do
+this, R would have fit an additional (unnecessary) intercept.
+Note that this has fit the model
+
+
+$$
+y_{ij} = \alpha + a_i + (\beta + b_i )Days_j + \epsilon_{ij}
+$$
+
+where
+
+$$
+a_i \sim N(0,\sigma^2_a ),~ b_i \sim N(0,\sigma_2^b )  ~~\text{and}~~  \epsilon_{ij}\sim N(0,\sigma^2 )
+$$
+with all the random effects independent of each other.
+
+In the correlated random effects model, the correlation was estimated to be small. This suggests that the
+uncorrelated random effects model is a good choice. We will look later at how to formally test which model is
+better.

@@ -1,0 +1,146 @@
+---
+title: "Lecture 1 - fixed vs random effects models"
+author: "Dr Richard Wilkinson"
+date: "8 February 2016"
+output: html_document
+---
+
+```{r}
+library(lme4)
+library(lattice)
+load('MAS473.RData')
+attach(ergoStool)
+
+```
+
+# Section 3.5.2 
+
+## inspecting the data
+
+```{r}
+str(ergoStool)
+head(ergoStool)
+tail(ergoStool)
+xtabs(~ Type + Subject, ergoStool)
+matrix(by(effort,list(Type,Subject),mean),4,9)
+```
+
+## Plotting the data
+
+# With lattice
+```{r}
+xyplot(effort~Type|Subject,data=ergoStool)
+```
+
+# With ggplot2
+
+```{r}
+library(ggplot2)
+qplot(Type, effort, facets=~Subject, data =ergoStool)
+```
+
+```{r, include =FALSE}
+dotplot(reorder(Subject,effort) ~ effort, data=ergoStool, groups = Type, type = c("p"),pch=Type, par.settings=simpleTheme(pch=Type), xlab = "Effort to arise (Borg scale)", auto.key = list(columns=4))
+```
+
+```{r, include=FALSE}
+qplot(reorder(effort, effort), reorder(Subject,effort),  pch=Type, data =ergoStool, color=Type,xlab = "Effort to arise (Borg scale)")
+```
+
+the argument reorder(Subject,effort) arranges the groups ("Subject") in order of increasing mean effort. 
+
+## Boxplots
+
+```{r}
+plot(Type,effort, xlab="Type", ylab="effort")
+```
+
+```{r}
+qplot(Type, effort, geom='boxplot')
+```
+
+
+```{r}
+par(mfrow=c(1,2))
+plot(Subject,effort, xlab="Subject", ylab="effort")
+plot(reorder(Subject,effort),effort, xlab="Subject", ylab="effort") 
+```
+
+```{r}
+qplot(reorder(Subject, effort), effort, geom='boxplot', xlab='Subject')
+```
+
+```{r}
+plot.design(ergoStool)
+```
+
+# 3.5.3 Fitting the model
+
+## Cell means formulation
+```{r}
+(fm1<-lmer(effort~Type-1 + (1|Subject),ergoStool))
+```
+
+
+## Default formulation
+```{r}
+(fm2<-lmer(effort~Type + (1|Subject),ergoStool))
+```
+
+## Sum to zero formulation
+
+```{r}
+options(contrasts = rep("contr.sum", 2))
+(fm3<-lmer(effort~Type + (1|Subject),ergoStool))#, contrast = ))
+```
+
+go back to default treatment constrasts.
+
+```{r}
+options (contrasts = rep("contr.treatment", 2))
+```
+
+Same but without using side effects
+
+```{r}
+(fm4<-lmer(effort~Type + (1|Subject),ergoStool, contrast = list(Type = contr.sum)))
+
+```
+
+```{r}
+summary(fm1)
+
+```
+
+# Compare fixed effects estimates with
+```{r}
+by(effort,Type,mean)
+mean(effort[Type=='T1'])
+```
+
+Standard errors for the fixed effects estimates
+$(1.7755/9+1.2106/9)^{0.5}$
+
+
+Correlation between fixed effects estimates
+$1.7755/(1.7755+1.2106)$
+
+
+Compare fixed and random effects
+
+
+```{r}
+fm1
+(lm1<-lm(effort~Type-1+Subject,ergoStool, contrasts = list(Subject=contr.sum)))
+```
+
+```{r}
+summary(lm1)
+summary(fm1)
+
+```
+
+Note the standard errors are smaller.
+Why?
+
+
